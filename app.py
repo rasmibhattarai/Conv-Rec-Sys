@@ -1,6 +1,7 @@
 import os
 import sqlite3
 import asyncio
+import time
 from typing import Optional, List
 from dotenv import load_dotenv
 
@@ -70,6 +71,7 @@ def update_preferences(
     soft_preferences: Optional[List[str]] = None,
 ) -> str:
     """Use this tool to update the user's preferences whenever they provide new information."""
+    start = time.time()
     print(
         f"\n  --> [THOUGHT/TOOL: update_preferences] Extracted args: categories={categories}, budget={budget}, mandatory_filters={mandatory_filters}, soft_preferences={soft_preferences}"
     )
@@ -88,12 +90,16 @@ def update_preferences(
         )
 
     print(f"  --> [STATE UPDATED] Current state: {ctx.deps.model_dump()}")
+    print(
+        f"  --> [TIME] Tool 'update_preferences' executed in {time.time() - start:.3f}s"
+    )
     return f"Preferences updated successfully. Current state is now: {ctx.deps.model_dump()}"
 
 
 @agent.tool
 async def search_appliances(ctx: RunContext[AppliancePreferences]) -> str:
     """Use this tool to search the database using the currently known preferences."""
+    start_tool = time.time()
     print(
         f"\n  --> [THOUGHT/TOOL: search_appliances] Triggered with state: {ctx.deps.model_dump()}"
     )
@@ -130,11 +136,13 @@ async def search_appliances(ctx: RunContext[AppliancePreferences]) -> str:
 
     try:
         print("  --> [SQL SUB-AGENT] Requesting SQL generation from LLM...")
+        start_llm = time.time()
         response = await oai_client.chat.completions.create(
             model=model_name,
             messages=[{"role": "user", "content": prompt}],
             temperature=0.0,
         )
+        print(f"  --> [TIME] LLM call completed in {time.time() - start_llm:.3f}s")
 
         raw_query = response.choices[0].message.content.strip()
         # Clean up in case the LLM ignores instructions and outputs markdown
@@ -149,8 +157,10 @@ async def search_appliances(ctx: RunContext[AppliancePreferences]) -> str:
         with sqlite3.connect("appliances.db") as conn:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
+            start_db = time.time()
             cursor.execute(query)
             rows = cursor.fetchall()
+            print(f"  --> [TIME] DB query executed in {time.time() - start_db:.3f}s")
 
             if not rows:
                 print("  --> [DB RESULTS] No matching items found.")
@@ -166,6 +176,9 @@ async def search_appliances(ctx: RunContext[AppliancePreferences]) -> str:
             else:
                 print(f"  --> [DB RESULTS] Found {len(results)} item combinations.")
 
+            print(
+                f"  --> [TIME] Tool 'search_appliances' executed in {time.time() - start_tool:.3f}s"
+            )
             return str(results)
     except Exception as e:
         print(f"  --> [DB ERROR] {e}")
@@ -189,11 +202,12 @@ async def main():
             print(f"\n--- [TURN START] ---")
             print(f"--> [CURRENT STATE BEFORE RUN] {deps.model_dump()}")
 
+            start_run = time.time()
             result = await agent.run(
                 user_input, deps=deps, message_history=message_history
             )
-
             print(f"\n--> [RUN COMPLETE]")
+            print(f"[TIME] agent.run() completed in {time.time() - start_run:.3f}s")
             print(f"--> [CURRENT STATE AFTER RUN] {deps.model_dump()}")
 
             message_history = result.all_messages()
