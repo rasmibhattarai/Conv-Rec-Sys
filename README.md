@@ -1,4 +1,4 @@
-# AI Appliance Recommender
+# Home Appliance Recommender
 
 This project is a conversational recommendation system that helps users shop for home appliances like TVs, fridges, washing machines, and dishwashers.
 
