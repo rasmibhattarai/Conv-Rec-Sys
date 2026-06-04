@@ -1,4 +1,7 @@
 import sqlite3
+import os
+
+db_path = os.path.join(os.path.dirname(__file__), "appliances.db")
 
 query = """
 SELECT 
@@ -22,7 +25,7 @@ ORDER BY
 LIMIT 5;
 """
 
-with sqlite3.connect("appliances.db") as conn:
+with sqlite3.connect(db_path) as conn:
     cursor = conn.cursor()
     cursor.execute(query)
     results = cursor.fetchall()

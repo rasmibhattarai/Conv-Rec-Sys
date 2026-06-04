@@ -1,8 +1,8 @@
 import sqlite3
 import os
 
-db_path = "appliances.db"
-sql_path = "init_db.sql"
+db_path = os.path.join(os.path.dirname(__file__), "appliances.db")
+sql_path = os.path.join(os.path.dirname(__file__), "init_db.sql")
 
 if os.path.exists(db_path):
     os.remove(db_path)

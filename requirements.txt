@@ -1,0 +1,5 @@
+openai==2.37.0
+pydantic==2.12.5
+pydantic-ai==1.100.0
+pydantic_core==2.41.5
+python-dotenv==1.2.2
