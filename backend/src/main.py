@@ -1,4 +1,3 @@
-import time
 import asyncio
 import logging
 from .agent import agent
@@ -14,7 +13,7 @@ async def run_cli():
     deps = AppliancePreferences()
     message_history = []
 
-    print("\n=== Welcome to the Appliance Recommender V2 ===")
+    print("\n=== Welcome to the Appliance Recommender ===")
     print("Type 'quit' to exit.")
 
     while True:
@@ -23,21 +22,8 @@ async def run_cli():
             if user_input.lower() in ["quit", "exit"]:
                 break
 
-            turn_start = time.time()
-            logger.debug("--- [TURN START] ---")
-            logger.debug(f"--> [CURRENT STATE BEFORE RUN] {deps.model_dump()}")
-
-            start_run = time.time()
             result = await agent.run(
                 user_input, deps=deps, message_history=message_history
-            )
-            logger.debug("--> [RUN COMPLETE]")
-            logger.debug(
-                f"[TIME] agent.run() completed in {time.time() - start_run:.3f}s"
-            )
-            logger.debug(f"--> [CURRENT STATE AFTER RUN] {deps.model_dump()}")
-            logger.debug(
-                f"[TIME] Full turn (user query to assistant response) completed in {time.time() - turn_start:.3f}s"
             )
 
             message_history = result.all_messages()
@@ -46,7 +32,7 @@ async def run_cli():
         except EOFError:
             break
         except Exception as e:
-            logger.error(f"--> [ERROR] {e}")
+            logger.error(f"Error: {e}")
 
 
 if __name__ == "__main__":

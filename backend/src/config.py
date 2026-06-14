@@ -7,7 +7,7 @@ from openai import AsyncOpenAI
 
 # Set up logging
 logging.basicConfig(
-    level=logging.INFO,  # Can be changed to DEBUG to see all trace logs
+    level=logging.WARNING,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
@@ -18,10 +18,6 @@ load_dotenv()
 model_name = os.getenv("OPENAI_MODEL", "qwen-3.5-397b")
 base_url = os.getenv("OPENAI_BASE_URL")
 api_key = os.getenv("OPENAI_API_KEY")
-
-logger.info(
-    f"--> [INIT] Initializing OpenAIChatModel with model='{model_name}', base_url='{base_url}'"
-)
 
 # Provider for the main agent
 provider = OpenAIProvider(base_url=base_url, api_key=api_key)

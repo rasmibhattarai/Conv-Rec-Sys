@@ -1,4 +1,3 @@
-import time
 import asyncio
 import logging
 from typing import Optional, List
@@ -21,11 +20,6 @@ def update_preferences(
     soft_preferences: Optional[List[str]] = None,
 ) -> str:
     """Use this tool to update the user's preferences whenever they provide new information."""
-    start = time.time()
-    logger.debug(
-        f"--> [THOUGHT/TOOL: update_preferences] Extracted args: categories={categories}, budget={budget}, mandatory_filters={mandatory_filters}, soft_preferences={soft_preferences}"
-    )
-
     if categories:
         ctx.deps.categories = list(set(ctx.deps.categories + categories))
     if budget:
@@ -39,23 +33,13 @@ def update_preferences(
             set(ctx.deps.soft_preferences + soft_preferences)
         )
 
-    logger.debug(f"--> [STATE UPDATED] Current state: {ctx.deps.model_dump()}")
-    logger.debug(
-        f"--> [TIME] Tool 'update_preferences' executed in {time.time() - start:.3f}s"
-    )
     return f"Preferences updated successfully. Current state is now: {ctx.deps.model_dump()}"
 
 
 @agent.tool
 async def search_appliances(ctx: RunContext[AppliancePreferences]) -> str:
     """Use this tool to search the database using the currently known preferences."""
-    start_tool = time.time()
-    logger.debug(
-        f"--> [THOUGHT/TOOL: search_appliances] Triggered with state: {ctx.deps.model_dump()}"
-    )
-
     if not ctx.deps.categories:
-        logger.debug("--> [DB ERROR] Cannot search without a category.")
         return "Error: Category is required to search the database. Ask the user."
 
     schema = """
@@ -79,10 +63,6 @@ async def search_appliances(ctx: RunContext[AppliancePreferences]) -> str:
                 relaxed=relaxed,
             )
 
-            logger.debug(
-                f"--> [SQL SUB-AGENT] Requesting SQL generation from LLM (attempt {attempt + 1}, relaxed={relaxed})..."
-            )
-            start_llm = time.time()
             response = await asyncio.wait_for(
                 oai_client.chat.completions.create(
                     model=model_name,
@@ -90,9 +70,6 @@ async def search_appliances(ctx: RunContext[AppliancePreferences]) -> str:
                     temperature=0.0,
                 ),
                 timeout=60.0,
-            )
-            logger.debug(
-                f"--> [TIME] LLM call completed in {time.time() - start_llm:.3f}s"
             )
 
             raw_query = response.choices[0].message.content.strip()
@@ -102,56 +79,26 @@ async def search_appliances(ctx: RunContext[AppliancePreferences]) -> str:
                     raw_query = raw_query[:-3]
 
             query = raw_query.strip()
-            logger.debug(f"--> [DB QUERY] Dynamically generated SQL:\n{query}")
-
-            start_db = time.time()
             results = await asyncio.wait_for(_execute_sql_query(query), timeout=60.0)
-            logger.debug(
-                f"--> [TIME] DB query executed in {time.time() - start_db:.3f}s"
-            )
 
             if results:
-                logger.debug(
-                    f"--> [DB RESULTS] Found {len(results)} item combinations."
-                )
                 if relaxed:
-                    message = _format_relaxed_results(results, 1)
-                    logger.debug(
-                        f"--> [TIME] Tool 'search_appliances' executed in {time.time() - start_tool:.3f}s"
-                    )
-                    return message
-                logger.debug(
-                    f"--> [TIME] Tool 'search_appliances' executed in {time.time() - start_tool:.3f}s"
-                )
+                    return _format_relaxed_results(results, 1)
                 return str(results)
             else:
-                logger.debug("--> [DB RESULTS] No matching items found.")
                 if relaxed:
-                    logger.debug(
-                        f"--> [TIME] Tool 'search_appliances' executed in {time.time() - start_tool:.3f}s"
-                    )
                     return "[SEARCH_FAILED] No matching items found. Show this to the user and ask them to broaden their criteria. Do NOT retry the search."
                 continue
 
         except asyncio.TimeoutError:
-            logger.debug(f"--> [TIMEOUT] Attempt {attempt + 1} timed out after 60s.")
             if relaxed:
-                logger.debug(
-                    f"--> [TIME] Tool 'search_appliances' executed in {time.time() - start_tool:.3f}s"
-                )
                 return "[SEARCH_FAILED] Search timed out. Show this to the user and ask them to rephrase with simpler criteria. Do NOT retry the search."
             continue
 
         except Exception as e:
-            logger.debug(f"--> [DB ERROR] {e}")
+            logger.error(f"Database error: {e}")
             if relaxed:
-                logger.debug(
-                    f"--> [TIME] Tool 'search_appliances' executed in {time.time() - start_tool:.3f}s"
-                )
                 return f"[SEARCH_FAILED] Database error: {e}. Show this to the user and ask them to rephrase. Do NOT retry the search."
             continue
 
-    logger.debug(
-        f"--> [TIME] Tool 'search_appliances' executed in {time.time() - start_tool:.3f}s"
-    )
     return "[SEARCH_FAILED] Search failed after multiple attempts. Show this to the user and ask them to rephrase with simpler criteria. Do NOT retry the search."
